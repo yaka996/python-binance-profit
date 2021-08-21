@@ -247,6 +247,36 @@ class Client:
 
         else:
             return order_in_progress
+            
+    def create_limit_sell_order(
+        self,
+        order: LimitOrder,
+    ) -> Optional[OrderInProgress]:
+        """
+        Place a limit sell order.
+        Args:
+            order (LimitOrder): Limit order to be executed by Binance
+        Return
+            OrderInProgress
+        """
+        try:
+            sell_order = self.binance_client.order_limit_sell(
+                symbol=order.symbol.symbol,
+                quantity=order.quantity,
+                price=order.price,
+            )
+            order_in_progress = OrderInProgress(
+                id=sell_order["orderId"],
+                order=order
+            )
+            print("-> The limit sell order has been sent")
+
+        except BinanceAPIException as e:
+            print(f"(Code {e.status_code}) {e.message}")
+            return None
+
+        else:
+            return order_in_progress
 
     def create_sell_oco_order(
         self,
@@ -262,7 +292,7 @@ class Client:
         try:
             sell_order = self.binance_client.create_oco_order(
                 symbol=order.symbol.symbol,
-                side=order.side,
+                side='SELL',
                 quantity=order.quantity,
                 price=order.price,
                 stopPrice=order.stop_price,
@@ -364,6 +394,69 @@ class Client:
                 time.sleep(3)
 
         return buy_order_in_progress
+
+    def execute_limit_sell_strategy(
+        self,
+        order: Order,
+    ) -> OrderInProgress:
+        """
+        Execute the sell strategy.
+        Args:
+            order (Order): Order to be executed by Binance
+        Return:
+            OrderInProgress
+        """
+
+        print("=> Step 1 - Sell order execution")
+
+        if isinstance(order, LimitOrder):
+            if not (sell_order_in_progress := self.create_limit_sell_order(order)):
+                sys.exit("Limit sell order has not been created")
+
+        # elif isinstance(order, MarketOrder):
+            # if not (sell_order_in_progress := self.create_market_sell_order(order)):
+                # sys.exit("Market buy order has not been created")
+        else:
+            sys.exit("Order type not supported yet.")
+
+        # Wait for few seconds (API may not find the order_id instantly after the executing)
+        time.sleep(3)
+
+        NB_MAX_ATTEMPTS = 10
+        ORDER_IS_NOT_FILLED_YET = True
+        while ORDER_IS_NOT_FILLED_YET:
+            # Iterate few times if the Binance API is not responding
+            for retry_number in range(NB_MAX_ATTEMPTS):
+                try:
+                    self.update_order_info(
+                        order_in_progress=sell_order_in_progress
+                    )
+                except Exception as e:
+                    print(f"({retry_number + 1}) Connection failed. Retry...", e)
+                    time.sleep(2)
+                    continue
+                else:
+                    break
+            else:
+                print("Binance API is not responding, attempting to cancel the sell order...")
+                # Cancel order
+                _cancel_result = self.cancel_open_order(
+                    order_in_progress=sell_order_in_progress
+                )
+                sys.exit(f"sell order canceled: {_cancel_result}")
+
+            if sell_order_in_progress.info.status == "FILLED":
+                print("The sell order has been filled!")
+                break
+
+            elif sell_order_in_progress.info.status == "CANCELED":
+                sys.exit("The sell order has been canceled (not by the script)!")
+
+            else:
+                print("The order is not filled yet...")
+                time.sleep(3)
+
+        return sell_order_in_progress
 
     def update_order_info(
         self,
