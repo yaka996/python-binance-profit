@@ -75,11 +75,12 @@ python execute_orders.py --symbol YOUR_SYMBOL --buy_type market --total TOTAL_AM
 ```
 python execute_orders.py --symbol BTCUSDT --buy_type market --total 100.0 --profit 4 --loss 1 
 ```
-## Donate
-If you want to support this project financially, you can make a donation to any of the following address:
-- **BTC** address: `bc1qgulv5tm2qz7pjm2g560gk4j33k2zr0a4vv5cpw`
-- **ETH** ERC20 address: `0x11077498b5c67C76F6Eb2789A381A3Cdd26e4c4B`
-- **PayPal**: (https://paypal.me/UlyssePETIT)[https://paypal.me/UlyssePETIT]
----
-Enjoy!
-Don't hesitate to send me feedbacks and report issues :) Thank you!
+**Limit sell order:**
+```
+python execute_orders.py --symbol YOUR_SYMBOL --buy_type sell_limit --quantity YOUR_QUANTITY --price YOUR_PRICE
+```
+*Example: If you want to trade BNB against BUSD, sell 0.0328 BNB at 460 BUSD, you'll execute the script like this:*
+```
+python execute_orders.py --symbol BNBBUSD --buy_type sell_limit --quantity 0.0328 --price 460 
+```
+
